@@ -1,0 +1,104 @@
+<form script="duplicity_restore.js" >
+  <label>View and Restore Files</label>
+  <fieldset submitButton="true" autoRun="false">
+    <input type="text" token="BackupStartTime" depends="$never$"></input>
+    <input type="text" token="filenamefilter" searchWhenChanged="true">
+      <label>Filename</label>
+      <default>*</default>
+    </input>
+  </fieldset>
+  <search id="backupStartTime">
+    <query>
+      <![CDATA[
+      | makeresults
+      | eval value=$BackupStartTime|s$
+      | eval value=strptime(value, "%a %b %-d %Y at %-I:%M %p")
+      | eval value=mvindex(split(value, "."), 0)
+      ]]>
+    </query>
+    <earliest>0</earliest>
+    <latest>now</latest>
+    <done>
+      <set token="epochBackupStartTime">$result.value$</set>
+    </done>
+  </search>
+  <search id="filelistsearch">
+    <query>
+      <![CDATA[
+      | duplicity splunk-file-list --time=$epochBackupStartTime|n$ [| rest splunk_server=local /services/data/inputs/duplicity/backup | table target_url | return $target_url]
+      | table perms owner group size modtime filename
+      | eval _modtime=modtime
+      | eval modtime=if(modtime < relative_time(now(), "-11mon@mon"), strftime(modtime, "%b %d %Y") ,strftime(modtime, "%b %d at %H:%M"))
+      ]]>
+    </query>
+    <earliest>0</earliest>
+    <latest>now</latest>
+  </search>
+  <row>
+    <panel>
+      <table>
+        <search base="filelistsearch">
+          <query>
+            | search filename="*$filenamefilter|n$*"
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">row</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <set token="filename">$row.filename$</set>
+          <set token="restoreFilename">$row.filename$.$row._modtime$</set>
+          <unset token="restoreDone" />
+        </drilldown>
+      </table>
+    </panel>
+    <panel depends="$filename$">
+      <html>
+        <div id="dupRestoreWrapper">
+          <h1>$filename$</h1>
+
+          <div class="form-inline">
+            <div class="form-group">
+              <label for="filename">File to restore</label>
+              <input type="text" readonly="true" class="form-control-plaintext" value="$filename$" style="width: 100%"/>
+            </div>
+          </div>
+
+          <div class="form-inline">
+            <div class="form-group">
+              <label for="dest">Destination</label>
+              <input type="text" class="form-control-plaintext" data-token="dest" value="$$SPLUNK_HOME/etc/$restoreFilename$" style="width: 100%"/>
+            </div>
+          </div>
+
+          <div>
+            <br/>
+          </div>
+
+          <div class="form-inline">
+            <div>
+              <a class="btn btn-primary pull-right editing-content save-button" href="#">Restore</a>
+              <a class="btn btn-danger pull-right editing-content cancel-button" href="#">Cancel</a>
+            </div>
+          </div>
+        </div>
+      </html>
+    </panel>
+    <panel depends="$restoreDone$">
+      <html>
+        <h1>Restore complete</h1>
+
+        <a class="btn btn-primary pull-left editing-content done-button" href="#">OK</a>
+      </html>
+    </panel>
+    <panel depends="$restoreFailed$">
+      <html>
+        <h1>Restore failed</h1>
+
+        <pre>$restoreFailed|n$</pre>
+
+        <a class="btn btn-primary pull-left editing-content done-button" href="#">OK</a>
+      </html>
+    </panel>
+  </row>
+</form>

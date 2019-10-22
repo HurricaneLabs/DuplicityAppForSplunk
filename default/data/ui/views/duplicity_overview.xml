@@ -1,0 +1,108 @@
+<dashboard>
+  <label>Overview</label>
+  <search id="backupsBase">
+    <query>
+      | duplicity splunk-last-backups [| rest splunk_server=local /services/data/inputs/duplicity/backup | table target_url | return $target_url]
+      | fillnull value=0 last_full_backup_time last_incr_backup_time
+    </query>
+    <earliest>0</earliest>
+    <latest>now</latest>
+    <done>
+      <condition match="$result.last_full_backup_time$ > 0">
+        <set token="FullBackupTime">$result.last_full_backup_time$</set>
+        <set token="IncrBackupTime">$result.last_incr_backup_time$</set>
+        <set token="has_full_backup">true</set>
+      </condition>
+      <condition>
+        <unset token="FullBackupTime" />
+        <unset token="IncrBackupTime" />
+        <unset token="has_full_backup" />
+      </condition>
+    </done>
+  </search>
+  <search id="backupLogBase" depends="$FullBackupTime$">
+    <query>
+      index=main sourcetype="duplicity" earliest=$FullBackupTime$
+      | table StartTime SourceFiles SourceFileSize NewFiles ChangedFiles DeletedFiles RawDeltaSize ElapsedTime Errors
+    </query>
+    <earliest>0</earliest>
+    <latest>now</latest>
+  </search>
+  <row>
+    <panel>
+      <single>
+        <title>Last full backup</title>
+        <search base="backupsBase">
+          <query>
+            | eval FullBackupTime=if(last_full_backup_time>0, strftime(last_full_backup_time, "%a %b %-d %Y at %-I:%M %p"), "N/A")
+            | table FullBackupTime
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Last incremental backup</title>
+        <search base="backupsBase">
+          <query>
+            <![CDATA[
+            | eval IncrBackupTime=if(last_incr_backup_time>0, strftime(last_incr_backup_time, "%a %b %-d %Y at %-I:%M %p"), "N/A")
+            | table IncrBackupTime
+            ]]>
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel depends="$has_full_backup$">
+      <single>
+        <title>Average backup size</title>
+        <search base="backupLogBase">
+          <query>
+            <![CDATA[
+            | stats avg(RawDeltaSize) as AvgRawDeltaSize
+            | foreach AvgRawDeltaSize [eval <<FIELD>>=case(
+                <<FIELD>> < 1000, round(<<FIELD>>, 2)." B",
+                <<FIELD>> < 1000000, round(<<FIELD>>/1000, 2)." KB",
+                <<FIELD>> < 1000000000, round(<<FIELD>>/1000000, 2)." MB",
+                <<FIELD>> < 1000000000000, round(<<FIELD>>/1000000000, 2)." GB"
+            )]
+            ]]>
+          </query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel depends="$has_full_backup$">
+      <table>
+        <title>Most recent backups</title>
+        <search base="backupLogBase">
+          <query>
+            <![CDATA[
+            | sort 0 - StartTime
+            | head 5
+            | eval StartTime=strftime(StartTime, "%a %b %-d %Y at %-I:%M %p")
+            | foreach SourceFileSize RawDeltaSize [eval <<FIELD>>=case(
+                <<FIELD>> < 1000, round(<<FIELD>>, 2)." B",
+                <<FIELD>> < 1000000, round(<<FIELD>>/1000, 2)." KB",
+                <<FIELD>> < 1000000000, round(<<FIELD>>/1000000, 2)." MB",
+                <<FIELD>> < 1000000000000, round(<<FIELD>>/1000000000, 2)." GB"
+            )]
+            ]]>
+          </query>
+        </search>
+        <option name="count">10</option>
+        <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_self">/app/DuplicityAppForSplunk/duplicity_drilldown?form.BackupStartTime=$row.StartTime$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</dashboard>

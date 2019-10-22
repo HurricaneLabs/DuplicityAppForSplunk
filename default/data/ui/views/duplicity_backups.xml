@@ -1,0 +1,37 @@
+<form>
+  <label>Explore Backups</label>
+  <fieldset submitButton="false">
+    <input type="time" token="timerange">
+      <label></label>
+      <default>
+        <earliest>-30d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <table>
+        <search>
+          <query>index=main sourcetype="duplicity"
+            | table StartTime SourceFiles SourceFileSize NewFiles ChangedFiles DeletedFiles RawDeltaSize ElapsedTime Errors
+            | sort 0 + StartTime
+            | eval StartTime=strftime(StartTime, "%a %b %-d %Y at %-I:%M %p")
+            | foreach SourceFileSize RawDeltaSize [eval &lt;&lt;FIELD&gt;&gt;=case(
+                &lt;&lt;FIELD&gt;&gt; &lt; 1000, round(&lt;&lt;FIELD&gt;&gt;, 2)." B",
+                &lt;&lt;FIELD&gt;&gt; &lt; 1000000, round(&lt;&lt;FIELD&gt;&gt;/1000, 2)." KB",
+                &lt;&lt;FIELD&gt;&gt; &lt; 1000000000, round(&lt;&lt;FIELD&gt;&gt;/1000000, 2)." MB",
+                &lt;&lt;FIELD&gt;&gt; &lt; 1000000000000, round(&lt;&lt;FIELD&gt;&gt;/1000000000, 2)." GB"
+            )]</query>
+          <earliest>$timerange.earliest$</earliest>
+          <latest>$timerange.latest$</latest>
+        </search>
+        <option name="count">25</option>
+        <option name="drilldown">row</option>
+        <drilldown>
+          <link target="_self">/app/DuplicityAppForSplunk/duplicity_drilldown?form.BackupStartTime=$row.StartTime$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</form>

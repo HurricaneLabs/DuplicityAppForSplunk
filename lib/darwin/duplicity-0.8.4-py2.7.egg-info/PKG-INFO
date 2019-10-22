@@ -1,0 +1,17 @@
+Metadata-Version: 1.2
+Name: duplicity
+Version: 0.8.4
+Summary: Encrypted backup using rsync algorithm
+Home-page: http://duplicity.nongnu.org/index.html
+Author: Ben Escoto <requested no contact>
+Author-email: <requested no contact>
+Maintainer: Kenneth Loafman <kenneth@loafman.com>
+Maintainer-email: kenneth@loafman.com
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7

@@ -1,0 +1,85 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+develop-eggs/
+downloads/
+eggs/
+lib64/
+parts/
+sdist/
+var/
+lib/*.egg-info/
+lib/*/*.egg-info/
+.installed.cfg
+*.egg
+lib/**/*.pickle
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+!README/*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+#Vim
+*.swp
+
+#Splunk
+local/
+metadata/local.meta
+
+# dist-info
+bin/*.dist-info/
+lib/*.dist-info/
+lib/*/*.dist-info/
+lib/*/share
+bin/.ropeproject/
+**/.ropeproject
+
+# Miscellaneous
+.idea/
+appserver/static/node_modules/
+lookups/customers.csv
+lookups/customers.csv2
+lookups/workbench_change_request_owners.csv
+
+lib/easy_install.py
+lib/pip-10.0.1.dist-info/
+lib/pip/
+lib/pkg_resources/
+lib/setuptools-39.2.0.dist-info/
+lib/setuptools/
+lib/wheel-0.31.1.dist-info/
+lib/wheel/

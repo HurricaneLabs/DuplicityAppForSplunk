@@ -1,0 +1,165 @@
+#!/usr/bin/env python
+# -*- Mode:Python; indent-tabs-mode:nil; tab-width:4 -*-
+#
+# duplicity -- Encrypted bandwidth efficient backup
+# Version 0.8.04 released August 31, 2019
+#
+# Copyright 2002 Ben Escoto <ben@emerose.org>
+# Copyright 2007 Kenneth Loafman <kenneth@loafman.com>
+#
+# This file is part of duplicity.
+#
+# Duplicity is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 2 of the License, or (at your
+# option) any later version.
+#
+# Duplicity is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with duplicity; if not, write to the Free Software Foundation,
+# Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+#
+# See http://www.nongnu.org/duplicity for more information.
+# Please send mail to me or the mailing list if you find bugs or have
+# any suggestions.
+
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import filter
+from builtins import map
+from builtins import next
+from builtins import object
+from builtins import range
+
+import copy
+import fasteners
+import gzip
+import os
+import platform
+import re
+import resource
+import sys
+import time
+import traceback
+import types
+
+
+from datetime import datetime
+from os import statvfs
+
+from duplicity.dup_main import main
+import duplicity.errors
+
+from duplicity import gpg
+from duplicity import log
+from duplicity import tempdir
+from duplicity import util
+
+
+if u'--pydevd' in sys.argv or os.getenv(u'PYDEVD', None):
+    import pydevd  # pylint: disable=import-error
+    pydevd.settrace()
+    # In a dev environment the path is screwed so fix it.
+    base = sys.path.pop(0)
+    base = base.split(os.path.sep)[:-1]
+    base = os.path.sep.join(base)
+    sys.path.insert(0, base)
+
+log.setup()
+
+
+def with_tempdir(fn):
+    u"""
+    Execute function and guarantee cleanup of tempdir is called
+
+    @type fn: callable function
+    @param fn: function to execute
+
+    @return: void
+    @rtype: void
+    """
+    try:
+        fn()
+    finally:
+        tempdir.default().cleanup()
+
+
+if __name__ == u"__main__":
+    try:
+
+        #         import cProfile
+        #         import pstats
+        #         import StringIO
+        #         prof = cProfile.Profile()
+        #         prof.enable(subcalls=True, builtins=True)
+
+        with_tempdir(main)
+
+        #         prof.disable()
+        #         s = StringIO.StringIO()
+        #         ps = pstats.Stats(prof, stream=s).sort_stats('cumulative')
+        #         ps.print_stats(20)
+        #         print s.getvalue()
+
+    # Don't move this lower.  In order to get an exit
+    # status out of the system, you have to call the
+    # sys.exit() function.  Python handles this by
+    # raising the SystemExit exception.  Cleanup code
+    # goes here, if needed.
+    except SystemExit as e:
+        # No traceback, just get out
+        util.release_lockfile()
+        sys.exit(e.code)
+
+    except KeyboardInterrupt as e:
+        # No traceback, just get out
+        log.Info(_(u"INT intercepted...exiting."))
+        util.release_lockfile()
+        sys.exit(4)
+
+    except gpg.GPGError as e:
+        # For gpg errors, don't show an ugly stack trace by
+        # default. But do with sufficient verbosity.
+        util.release_lockfile()
+        log.Info(_(u"GPG error detail: %s")
+                 % util.exception_traceback())
+        log.FatalError(u"%s: %s" % (e.__class__.__name__, e.args[0]),
+                       log.ErrorCode.gpg_failed,
+                       e.__class__.__name__)
+
+    except duplicity.errors.UserError as e:
+        util.release_lockfile()
+        # For user errors, don't show an ugly stack trace by
+        # default. But do with sufficient verbosity.
+        log.Info(_(u"User error detail: %s")
+                 % util.exception_traceback())
+        log.FatalError(u"%s: %s" % (e.__class__.__name__, util.uexc(e)),
+                       log.ErrorCode.user_error,
+                       e.__class__.__name__)
+
+    except duplicity.errors.BackendException as e:
+        util.release_lockfile()
+        # For backend errors, don't show an ugly stack trace by
+        # default. But do with sufficient verbosity.
+        log.Info(_(u"Backend error detail: %s")
+                 % util.exception_traceback())
+        log.FatalError(u"%s: %s" % (e.__class__.__name__, util.uexc(e)),
+                       log.ErrorCode.user_error,
+                       e.__class__.__name__)
+
+    except Exception as e:
+        util.release_lockfile()
+        if u"Forced assertion for testing" in util.uexc(e):
+            log.FatalError(u"%s: %s" % (e.__class__.__name__, util.uexc(e)),
+                           log.ErrorCode.exception,
+                           e.__class__.__name__)
+        else:
+            # Traceback and that mess
+            log.FatalError(util.exception_traceback(),
+                           log.ErrorCode.exception,
+                           e.__class__.__name__)

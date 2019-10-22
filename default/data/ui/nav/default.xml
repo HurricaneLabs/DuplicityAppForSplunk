@@ -1,0 +1,5 @@
+<nav>
+  <view name="duplicity_overview" />
+  <view name="duplicity_backups" />
+  <view name="duplicity_configure" />
+</nav>
